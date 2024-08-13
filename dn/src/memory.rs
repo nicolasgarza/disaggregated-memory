@@ -17,22 +17,21 @@ impl DataNode {
     }
 
     pub fn allocate_memory(&mut self, size: usize) -> Result<usize, AllocationError> {
-        if size > MAX_ALLOCATION.into() {
-            return Err(AllocationError::AllocationTooLarge);
-        }
-        let id = self.next_id;
-        self.mem.insert(id, vec![0u8; size]);
-        self.next_id += 1;
-        Ok(id)
+        (size <= MAX_ALLOCATION)
+            .then(|| {
+                let id = self.next_id;
+                self.mem.insert(id, vec![0u8; size]);
+                self.next_id += 1;
+                id
+            })
+            .ok_or(AllocationError::AllocationTooLarge)
     }
 
     pub fn free_memory(&mut self, id: usize) -> Result<(), DeallocationError> {
-        if !self.mem.contains_key(&id) {
-            return Err(DeallocationError::InvalidMemoryAddress);
-        }
-
-        self.mem.remove(&id);
-        Ok(())
+        self.mem
+            .remove(&id)
+            .map(|_| ())
+            .ok_or(DeallocationError::InvalidMemoryAddress)
     }
 
     pub fn read_memory(
@@ -41,13 +40,14 @@ impl DataNode {
         offset: usize,
         length: usize,
     ) -> Result<&[u8], MemoryAccessError> {
-        let memory = self
-            .mem
+        self.mem
             .get(&id)
-            .ok_or(MemoryAccessError::InvalidMemoryAddress)?;
-        memory
-            .get(offset..offset + length)
-            .ok_or(MemoryAccessError::OutOfBoundsAccess)
+            .ok_or(MemoryAccessError::InvalidMemoryAddress)
+            .and_then(|memory| {
+                memory
+                    .get(offset..offset + length)
+                    .ok_or(MemoryAccessError::OutOfBoundsAccess)
+            })
     }
 
     pub fn write_memory(
@@ -56,14 +56,16 @@ impl DataNode {
         offset: usize,
         data: &[u8],
     ) -> Result<(), MemoryAccessError> {
-        let memory = self
-            .mem
+        self.mem
             .get_mut(&id)
-            .ok_or(MemoryAccessError::InvalidMemoryAddress)?;
-        if offset + data.len() > memory.len() {
-            return Err(MemoryAccessError::OutOfBoundsAccess);
-        }
-        memory[offset..offset + data.len()].copy_from_slice(data);
-        Ok(())
+            .ok_or(MemoryAccessError::InvalidMemoryAddress)
+            .and_then(|memory| {
+                if offset + data.len() <= memory.len() {
+                    memory[offset..offset + data.len()].copy_from_slice(data);
+                    Ok(())
+                } else {
+                    Err(MemoryAccessError::OutOfBoundsAccess)
+                }
+            })
     }
 }
