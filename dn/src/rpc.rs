@@ -1,21 +1,18 @@
 use crate::errors::{AllocationError, DeallocationError, MemoryAccessError};
+use crate::proto::memory;
 
 use crate::memory::DataNode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use proto::memory_server::{Memory, MemoryServer};
 use tonic::{Code, Status};
-mod proto {
-    tonic::include_proto!("memory");
-}
 
-struct MemoryService {
+pub struct MemoryService {
     data_node: Arc<Mutex<DataNode>>,
 }
 
 impl MemoryService {
-    fn new(data_node: DataNode) -> Self {
+    pub fn new(data_node: DataNode) -> Self {
         MemoryService {
             data_node: Arc::new(Mutex::new(data_node)),
         }
@@ -23,18 +20,18 @@ impl MemoryService {
 }
 
 #[tonic::async_trait]
-impl Memory for MemoryService {
+impl memory::memory_server::Memory for MemoryService {
     async fn allocate_memory(
         &self,
-        request: tonic::Request<proto::AllocateRequest>,
-    ) -> Result<tonic::Response<proto::AllocateResponse>, tonic::Status> {
+        request: tonic::Request<memory::AllocateRequest>,
+    ) -> Result<tonic::Response<memory::AllocateResponse>, tonic::Status> {
         let input = request.into_inner();
         let mut mem = self.data_node.lock().await;
         let response = mem.allocate_memory(input.size as usize);
 
         match response {
-            Ok(id) => Ok(tonic::Response::new(proto::AllocateResponse {
-                result: Some(proto::allocate_response::Result::Size(id as u64)),
+            Ok(id) => Ok(tonic::Response::new(memory::AllocateResponse {
+                result: Some(memory::allocate_response::Result::Size(id as u64)),
             })),
             Err(err) => {
                 let status = match err {
@@ -52,15 +49,15 @@ impl Memory for MemoryService {
 
     async fn free_memory(
         &self,
-        request: tonic::Request<proto::FreeRequest>,
-    ) -> Result<tonic::Response<proto::FreeResponse>, tonic::Status> {
+        request: tonic::Request<memory::FreeRequest>,
+    ) -> Result<tonic::Response<memory::FreeResponse>, tonic::Status> {
         let input = request.into_inner();
         let mut mem = self.data_node.lock().await;
         let response = mem.free_memory(input.id as usize);
 
         match response {
             Ok(_) => Ok(tonic::Response::new(proto::FreeResponse {
-                result: Some(proto::free_response::Result::Ok(true)),
+                result: Some(memory::free_response::Result::Ok(true)),
             })),
             Err(err) => {
                 let status = match err {
@@ -75,8 +72,8 @@ impl Memory for MemoryService {
 
     async fn read_memory(
         &self,
-        request: tonic::Request<proto::ReadRequest>,
-    ) -> Result<tonic::Response<proto::ReadResponse>, tonic::Status> {
+        request: tonic::Request<memory::ReadRequest>,
+    ) -> Result<tonic::Response<memory::ReadResponse>, tonic::Status> {
         let input = request.into_inner();
         let mem = self.data_node.lock().await;
         let response = mem.read_memory(
@@ -86,8 +83,8 @@ impl Memory for MemoryService {
         );
 
         match response {
-            Ok(bytes) => Ok(tonic::Response::new(proto::ReadResponse {
-                result: Some(proto::read_response::Result::Memory(bytes.to_vec())),
+            Ok(bytes) => Ok(tonic::Response::new(memory::ReadResponse {
+                result: Some(memory::read_response::Result::Memory(bytes.to_vec())),
             })),
             Err(err) => {
                 let status = match err {
@@ -105,15 +102,15 @@ impl Memory for MemoryService {
 
     async fn write_memory(
         &self,
-        request: tonic::Request<proto::WriteRequest>,
-    ) -> Result<tonic::Response<proto::WriteResponse>, Status> {
+        request: tonic::Request<memory::WriteRequest>,
+    ) -> Result<tonic::Response<memory::WriteResponse>, Status> {
         let input = request.into_inner();
         let mut mem = self.data_node.lock().await;
         let response = mem.write_memory(input.id as usize, input.offset as usize, &input.data);
 
         match response {
-            Ok(_) => Ok(tonic::Response::new(proto::WriteResponse {
-                result: Some(proto::write_response::Result::Ok(true)),
+            Ok(_) => Ok(tonic::Response::new(memory::WriteResponse {
+                result: Some(memory::write_response::Result::Ok(true)),
             })),
             Err(err) => {
                 let status = match err {
