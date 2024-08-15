@@ -1,7 +1,7 @@
 syntax = "proto3";
-package memory_service;
+package memory;
 
-service MemoryService {
+service Memory {
 	rpc AllocateMemory (AllocateRequest) returns (AllocateResponse);
 	rpc FreeMemory (FreeRequest) returns (FreeResponse);
 	rpc ReadMemory (ReadRequest) returns (ReadResponse);

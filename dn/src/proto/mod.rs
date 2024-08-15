@@ -1,3 +1,3 @@
-pub mod memory_service {
-    tonic::include_proto!("memory_service");
+pub mod memory {
+    tonic::include_proto!("memory");
 }
