@@ -44,7 +44,6 @@ impl Memory for MemoryService {
                     AllocationError::AllocationTooLarge => {
                         Status::new(Code::InvalidArgument, "Invalid size requested")
                     }
-                    _ => Status::new(Code::Internal, "Internal allocation error"),
                 };
                 Err(status)
             }
@@ -55,20 +54,78 @@ impl Memory for MemoryService {
         &self,
         request: tonic::Request<proto::FreeRequest>,
     ) -> Result<tonic::Response<proto::FreeResponse>, tonic::Status> {
-        todo!()
+        let input = request.into_inner();
+        let mut mem = self.data_node.lock().await;
+        let response = mem.free_memory(input.id as usize);
+
+        match response {
+            Ok(_) => Ok(tonic::Response::new(proto::FreeResponse {
+                result: Some(proto::free_response::Result::Ok(true)),
+            })),
+            Err(err) => {
+                let status = match err {
+                    DeallocationError::InvalidMemoryAddress => {
+                        Status::new(Code::OutOfRange, "Invalid memory access")
+                    }
+                };
+                Err(status)
+            }
+        }
     }
 
     async fn read_memory(
         &self,
         request: tonic::Request<proto::ReadRequest>,
-    ) -> Result<tonic::Response<proto::FreeResponse>, tonic::Status> {
-        todo!()
+    ) -> Result<tonic::Response<proto::ReadResponse>, tonic::Status> {
+        let input = request.into_inner();
+        let mem = self.data_node.lock().await;
+        let response = mem.read_memory(
+            input.id as usize,
+            input.offset as usize,
+            input.length as usize,
+        );
+
+        match response {
+            Ok(bytes) => Ok(tonic::Response::new(proto::ReadResponse {
+                result: Some(proto::read_response::Result::Memory(bytes.to_vec())),
+            })),
+            Err(err) => {
+                let status = match err {
+                    MemoryAccessError::InvalidMemoryAddress => {
+                        Status::new(Code::NotFound, "Invalid memory access")
+                    }
+                    MemoryAccessError::OutOfBoundsAccess => {
+                        Status::new(Code::OutOfRange, "Out of bounds access")
+                    }
+                };
+                Err(status)
+            }
+        }
     }
 
     async fn write_memory(
         &self,
         request: tonic::Request<proto::WriteRequest>,
     ) -> Result<tonic::Response<proto::WriteResponse>, Status> {
-        todo!()
+        let input = request.into_inner();
+        let mut mem = self.data_node.lock().await;
+        let response = mem.write_memory(input.id as usize, input.offset as usize, &input.data);
+
+        match response {
+            Ok(_) => Ok(tonic::Response::new(proto::WriteResponse {
+                result: Some(proto::write_response::Result::Ok(true)),
+            })),
+            Err(err) => {
+                let status = match err {
+                    MemoryAccessError::InvalidMemoryAddress => {
+                        Status::new(Code::NotFound, "Invalid memory access")
+                    }
+                    MemoryAccessError::OutOfBoundsAccess => {
+                        Status::new(Code::OutOfRange, "Out of bounds access")
+                    }
+                };
+                Err(status)
+            }
+        }
     }
 }
