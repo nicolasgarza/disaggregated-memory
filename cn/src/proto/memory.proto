@@ -1,0 +1,74 @@
+syntax = "proto3";
+package memory;
+
+service Memory {
+	rpc AllocateMemory (AllocateRequest) returns (AllocateResponse);
+	rpc FreeMemory (FreeRequest) returns (FreeResponse);
+	rpc ReadMemory (ReadRequest) returns (ReadResponse);
+	rpc WriteMemory (WriteRequest) returns (WriteResponse);
+}
+
+message AllocateRequest {
+	uint64 size = 1;
+}
+
+enum AllocationError {
+	ALLOCATION_ERROR_UNSPECIFIED = 0;
+	ALLOCATION_TOO_LARGE = 1;
+	INSUFFICIENT_MEMORY = 2;
+}
+
+message AllocateResponse {
+	oneof result {
+		uint64 size = 1;
+		AllocationError error = 2;
+	}
+}
+
+enum DeallocationError {
+	DEALLOCATION_ERROR_UNSPECIFIED = 0;
+	DEALLOCATION_INVALID_MEMORY_ADDRESS = 1;
+}
+
+message FreeRequest {
+	uint64 id = 1;
+}
+
+message FreeResponse {
+	oneof result {
+		bool ok = 1;
+		DeallocationError error = 2;
+	}
+}
+
+enum MemoryAccessError {
+	MEMORY_ACCESS_ERROR_UNSPECIFIED = 0;
+	ACCESS_INVALID_MEMORY_ADDRESS = 1;
+	OUT_OF_BOUNDS_ACCESS = 2;
+}
+
+message ReadRequest {
+	uint64 id = 1;
+	uint64 offset = 2;
+	uint64 length = 3;
+}
+
+message ReadResponse {
+	oneof result {
+		bytes memory = 1;
+		MemoryAccessError error = 2;
+	}
+}
+
+message WriteRequest {
+	uint64 id = 1;
+	uint64 offset = 2;
+	bytes data = 3;
+}
+
+message WriteResponse {
+	oneof result {
+		bool ok = 1;
+		MemoryAccessError error = 2;
+	}
+}
