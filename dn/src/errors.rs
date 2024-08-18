@@ -1,7 +1,6 @@
 #[derive(Debug)]
 pub enum AllocationError {
     AllocationTooLarge,
-    InsufficientMemory,
 }
 
 impl std::fmt::Display for AllocationError {
@@ -10,7 +9,6 @@ impl std::fmt::Display for AllocationError {
             AllocationError::AllocationTooLarge => {
                 write!(f, "Requested too much memory in allocation")
             }
-            AllocationError::InsufficientMemory => write!(f, "Insufficient memory for allocation"),
         }
     }
 }

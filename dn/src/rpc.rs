@@ -35,9 +35,6 @@ impl memory::memory_server::Memory for MemoryService {
             })),
             Err(err) => {
                 let status = match err {
-                    AllocationError::InsufficientMemory => {
-                        Status::new(Code::ResourceExhausted, "Out of memory")
-                    }
                     AllocationError::AllocationTooLarge => {
                         Status::new(Code::InvalidArgument, "Invalid size requested")
                     }
@@ -56,7 +53,7 @@ impl memory::memory_server::Memory for MemoryService {
         let response = mem.free_memory(input.id as usize);
 
         match response {
-            Ok(_) => Ok(tonic::Response::new(proto::FreeResponse {
+            Ok(_) => Ok(tonic::Response::new(memory::FreeResponse {
                 result: Some(memory::free_response::Result::Ok(true)),
             })),
             Err(err) => {
