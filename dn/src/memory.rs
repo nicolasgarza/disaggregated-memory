@@ -1,37 +1,46 @@
 use crate::errors::{AllocationError, DeallocationError, MemoryAccessError};
-use std::collections::HashMap;
 
 pub struct DataNode {
-    mem: HashMap<usize, Vec<u8>>,
-    next_id: usize,
+    mem: Vec<Option<Vec<u8>>>,
 }
 
 const MAX_ALLOCATION: usize = 1024 * 1024; // 1mb
 
 impl DataNode {
     pub fn new() -> Self {
-        return DataNode {
-            mem: HashMap::new(),
-            next_id: 0,
-        };
+        return DataNode { mem: Vec::new() };
     }
 
     pub fn allocate_memory(&mut self, size: usize) -> Result<usize, AllocationError> {
-        (size <= MAX_ALLOCATION)
-            .then(|| {
-                let id = self.next_id;
-                self.mem.insert(id, vec![0u8; size]);
-                self.next_id += 1;
-                id
-            })
-            .ok_or(AllocationError::AllocationTooLarge)
+        if size > MAX_ALLOCATION {
+            return Err(AllocationError::AllocationTooLarge);
+        }
+
+        let id = self
+            .mem
+            .iter()
+            .position(Option::is_none)
+            .unwrap_or(self.mem.len());
+        if id == self.mem.len() {
+            self.mem.push(Some(vec![0u8; size]));
+        } else {
+            self.mem[id] = Some(vec![0u8; size]);
+        }
+        Ok(id)
     }
 
     pub fn free_memory(&mut self, id: usize) -> Result<(), DeallocationError> {
         self.mem
-            .remove(&id)
-            .map(|_| ())
+            .get_mut(id)
             .ok_or(DeallocationError::InvalidMemoryAddress)
+            .and_then(|slot| {
+                if slot.is_some() {
+                    *slot = None;
+                    Ok(())
+                } else {
+                    Err(DeallocationError::InvalidMemoryAddress)
+                }
+            })
     }
 
     pub fn read_memory(
@@ -41,8 +50,9 @@ impl DataNode {
         length: usize,
     ) -> Result<&[u8], MemoryAccessError> {
         self.mem
-            .get(&id)
+            .get(id)
             .ok_or(MemoryAccessError::InvalidMemoryAddress)
+            .and_then(|slot| slot.as_ref().ok_or(MemoryAccessError::InvalidMemoryAddress))
             .and_then(|memory| {
                 memory
                     .get(offset..offset + length)
@@ -57,8 +67,9 @@ impl DataNode {
         data: &[u8],
     ) -> Result<(), MemoryAccessError> {
         self.mem
-            .get_mut(&id)
+            .get_mut(id)
             .ok_or(MemoryAccessError::InvalidMemoryAddress)
+            .and_then(|slot| slot.as_mut().ok_or(MemoryAccessError::InvalidMemoryAddress))
             .and_then(|memory| {
                 if offset + data.len() <= memory.len() {
                     memory[offset..offset + data.len()].copy_from_slice(data);
