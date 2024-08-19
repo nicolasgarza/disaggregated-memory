@@ -122,4 +122,20 @@ impl memory::memory_server::Memory for MemoryService {
             }
         }
     }
+
+    async fn get_memory_size(
+        &self,
+        request: tonic::Request<memory::GetMemorySizeRequest>,
+    ) -> Result<tonic::Response<memory::GetMemorySizeResponse>, Status> {
+        let input = request.into_inner();
+        let mem = self.data_node.lock().await;
+        let response = mem.get_memory_size(input.id as usize);
+
+        match response {
+            Ok(size) => Ok(tonic::Response::new(memory::GetMemorySizeResponse {
+                result: Some(memory::get_memory_size_response::Result::Size(size as u64)),
+            })),
+            Err(_) => Err(Status::new(Code::NotFound, "Invalid memory access")),
+        }
+    }
 }

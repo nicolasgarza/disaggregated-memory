@@ -6,6 +6,7 @@ service Memory {
 	rpc FreeMemory (FreeRequest) returns (FreeResponse);
 	rpc ReadMemory (ReadRequest) returns (ReadResponse);
 	rpc WriteMemory (WriteRequest) returns (WriteResponse);
+	rpc GetMemorySize (GetMemorySizeRequest) returns (GetMemorySizeResponse);
 }
 
 message AllocateRequest {
@@ -69,6 +70,17 @@ message WriteRequest {
 message WriteResponse {
 	oneof result {
 		bool ok = 1;
+		MemoryAccessError error = 2;
+	}
+}
+
+message GetMemorySizeRequest {
+	uint64 id = 1;
+}
+
+message GetMemorySizeResponse {
+	oneof result {
+		uint64 size = 1;
 		MemoryAccessError error = 2;
 	}
 }

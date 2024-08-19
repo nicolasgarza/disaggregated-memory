@@ -12,11 +12,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut kv_store = KeyValueStore::new(client).await?;
 
     kv_store.set("name", b"Alice").await?;
-    println!("Set key Alice");
     kv_store.set("age", b"30").await?;
-    println!("Set age 30");
     kv_store.set("city", b"New York").await?;
-    println!("Set city New York");
 
     if let Some(name) = kv_store.get("name").await? {
         println!("Name: {}", String::from_utf8_lossy(&name));

@@ -30,16 +30,19 @@ impl KeyValueStore {
             ));
         }
 
+        if key.len() > MAX_KEY_SIZE || value.len() > MAX_VALUE_SIZE {
+            return Err(MemoryError::AllocationError(
+                AllocationError::InsufficientMemory,
+            ));
+        }
         let total_size = key.len() + value.len();
         let memory_id = self.client.allocate_memory(total_size as u64).await?;
-        println!("Allocated: {} bytes", memory_id);
 
-        // write key
+        // Write key
         self.client
             .write(memory_id, 0, key.as_bytes().to_vec())
             .await?;
-
-        // write value
+        // Write value
         self.client
             .write(memory_id, key.len() as u64, value.to_vec())
             .await?;
@@ -47,21 +50,15 @@ impl KeyValueStore {
         if let Some((old_id, _)) = self.data.insert(key.to_string(), (memory_id, 0)) {
             self.client.free(old_id).await?;
         }
-
         Ok(())
     }
 
     pub async fn get(&mut self, key: &str) -> Result<Option<Vec<u8>>, MemoryError> {
-        if let Some(&(memory_id, offset)) = self.data.get(key) {
+        if let Some(&(memory_id, _offset)) = self.data.get(key) {
             let key_size = key.len() as u64;
-            println!(
-                "memory_id: {}, offset: {}, key_size: {}, length: 8",
-                memory_id, offset, key_size
-            );
-            let total_size = self.client.read(memory_id, 0, u64::MAX).await?;
-
-            let value_start = key_size as usize;
-            let value = total_size[value_start..].to_vec();
+            let total_size = self.client.get_memory_size(memory_id).await?;
+            let value_size = total_size - key_size;
+            let value = self.client.read(memory_id, key_size, value_size).await?;
             Ok(Some(value))
         } else {
             Ok(None)

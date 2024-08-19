@@ -16,16 +16,8 @@ impl DataNode {
             return Err(AllocationError::AllocationTooLarge);
         }
 
-        let id = self
-            .mem
-            .iter()
-            .position(Option::is_none)
-            .unwrap_or(self.mem.len());
-        if id == self.mem.len() {
-            self.mem.push(Some(vec![0u8; size]));
-        } else {
-            self.mem[id] = Some(vec![0u8; size]);
-        }
+        let id = self.mem.len();
+        self.mem.push(Some(vec![0u8; size]));
         Ok(id)
     }
 
@@ -80,5 +72,13 @@ impl DataNode {
                     Err(MemoryAccessError::OutOfBoundsAccess)
                 }
             })
+    }
+
+    pub fn get_memory_size(&self, id: usize) -> Result<usize, MemoryAccessError> {
+        self.mem
+            .get(id)
+            .ok_or(MemoryAccessError::InvalidMemoryAddress)
+            .and_then(|slot| slot.as_ref().ok_or(MemoryAccessError::InvalidMemoryAddress))
+            .map(|memory| memory.len())
     }
 }

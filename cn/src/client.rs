@@ -1,7 +1,8 @@
 use crate::proto::memory::{
     memory_client::MemoryClient as GrpcMemoryClient, AllocateRequest, AllocateResponse,
-    AllocationError, DeallocationError, FreeRequest, FreeResponse, MemoryAccessError, ReadRequest,
-    ReadResponse, WriteRequest, WriteResponse,
+    AllocationError, DeallocationError, FreeRequest, FreeResponse, GetMemorySizeRequest,
+    GetMemorySizeResponse, MemoryAccessError, ReadRequest, ReadResponse, WriteRequest,
+    WriteResponse,
 };
 use tonic::{transport::Channel, Response, Status};
 
@@ -114,6 +115,29 @@ impl MemoryClient {
                 // convert i32 to write error
                 match MemoryAccessError::from_i32(error) {
                     Some(write_error) => Err(write_error),
+                    None => Err(MemoryAccessError::Unspecified),
+                }
+            }
+            _ => Err(MemoryAccessError::Unspecified),
+        }
+    }
+
+    pub async fn get_memory_size(&mut self, id: u64) -> Result<u64, MemoryAccessError> {
+        let request = GetMemorySizeRequest { id };
+        let response: Response<GetMemorySizeResponse> = self
+            .client
+            .get_memory_size(request)
+            .await
+            .map_err(|e: Status| match e.code() {
+                tonic::Code::NotFound => MemoryAccessError::AccessInvalidMemoryAddress,
+                _ => MemoryAccessError::Unspecified,
+            })?;
+
+        match response.into_inner().result {
+            Some(crate::proto::memory::get_memory_size_response::Result::Size(size)) => Ok(size),
+            Some(crate::proto::memory::get_memory_size_response::Result::Error(error)) => {
+                match MemoryAccessError::from_i32(error) {
+                    Some(size_error) => Err(size_error),
                     None => Err(MemoryAccessError::Unspecified),
                 }
             }
