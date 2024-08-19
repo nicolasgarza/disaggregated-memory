@@ -3,24 +3,41 @@ mod errors;
 mod kv;
 mod proto;
 
+use crate::kv::KeyValueStore;
 use crate::proto::memory::{AllocationError, DeallocationError, MemoryAccessError};
 use client::MemoryClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = MemoryClient::new("http://[::1]:50051".to_string()).await?;
+    let client = MemoryClient::new("http://[::1]:50051".to_string()).await?;
+    let mut kv_store = KeyValueStore::new(client).await?;
 
-    // allocate memory
-    match client.allocate_memory(1024).await {
-        Ok(size) => println!("Allocated memory of size: {}", size),
-        Err(AllocationError::AllocationTooLarge) => println!("Allocation too large"),
-        Err(AllocationError::InsufficientMemory) => println!("Insufficient memory"),
-        Err(_) => println!("Unknown allocation error"),
+    kv_store.set("name", b"Alice").await?;
+    kv_store.set("age", b"30").await?;
+    kv_store.set("city", b"New York").await?;
+
+    if let Some(name) = kv_store.get("name").await? {
+        println!("Name: {}", String::from_utf8_lossy(&name));
+    }
+    if let Some(age) = kv_store.get("age").await? {
+        println!("Age: {}", String::from_utf8_lossy(&age));
+    }
+    if let Some(city) = kv_store.get("city").await? {
+        println!("City: {}", String::from_utf8_lossy(&city));
     }
 
-    // write to memory
-    let id = 0;
-    let data = vec![1, 2, 3, 4];
+    kv_store.set("age", b"31").await?;
+    if let Some(age) = kv_store.get("age").await? {
+        println!("Updated age: {}", String::from_utf8_lossy(&age));
+    }
+
+    if kv_store.delete("city").await? {
+        println!("Deleted 'city' key");
+    }
+
+    if let None = kv_store.get("city").await? {
+        println!("City key no longer exists");
+    }
 
     Ok(())
 }

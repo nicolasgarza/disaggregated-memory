@@ -7,14 +7,14 @@ const HEADER_SIZE: u64 = 1024; //metadata header
 const MAX_KEY_SIZE: usize = 256;
 const MAX_VALUE_SIZE: usize = 1024;
 
-struct KeyValueStore {
+pub struct KeyValueStore {
     client: MemoryClient,
     header_id: u64,
     data: HashMap<String, (u64, u64)>, // map keys to (memory_id, offset)
 }
 
 impl KeyValueStore {
-    async fn new(mut client: MemoryClient) -> Result<Self, MemoryError> {
+    pub async fn new(mut client: MemoryClient) -> Result<Self, MemoryError> {
         let header_id = client.allocate_memory(HEADER_SIZE).await?;
         Ok(Self {
             client,
@@ -23,7 +23,7 @@ impl KeyValueStore {
         })
     }
 
-    async fn set(&mut self, key: &str, value: &[u8]) -> Result<(), MemoryError> {
+    pub async fn set(&mut self, key: &str, value: &[u8]) -> Result<(), MemoryError> {
         if key.len() > MAX_KEY_SIZE || value.len() > MAX_VALUE_SIZE {
             return Err(MemoryError::AllocationError(
                 AllocationError::InsufficientMemory,
@@ -50,7 +50,7 @@ impl KeyValueStore {
         Ok(())
     }
 
-    async fn get(&mut self, key: &str) -> Result<Option<Vec<u8>>, MemoryError> {
+    pub async fn get(&mut self, key: &str) -> Result<Option<Vec<u8>>, MemoryError> {
         if let Some(&(memory_id, offset)) = self.data.get(key) {
             let key_size = key.len() as u64;
             let value_size = self.client.read(memory_id, offset + key_size, 8).await?;
@@ -65,7 +65,7 @@ impl KeyValueStore {
         }
     }
 
-    async fn delete(&mut self, key: &str) -> Result<bool, MemoryError> {
+    pub async fn delete(&mut self, key: &str) -> Result<bool, MemoryError> {
         if let Some((memory_id, _)) = self.data.remove(key) {
             self.client.free(memory_id).await?;
             Ok(true)
