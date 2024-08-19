@@ -1,6 +1,6 @@
 use crate::client::MemoryClient;
 use crate::errors::MemoryError;
-use crate::proto::memory::{AllocationError, DeallocationError, MemoryAccessError};
+use crate::proto::memory::AllocationError;
 use std::collections::HashMap;
 
 const HEADER_SIZE: u64 = 1024; //metadata header
@@ -9,16 +9,16 @@ const MAX_VALUE_SIZE: usize = 1024;
 
 pub struct KeyValueStore {
     client: MemoryClient,
-    header_id: u64,
+    //header_id: u64,
     data: HashMap<String, (u64, u64)>, // map keys to (memory_id, offset)
 }
 
 impl KeyValueStore {
     pub async fn new(mut client: MemoryClient) -> Result<Self, MemoryError> {
-        let header_id = client.allocate_memory(HEADER_SIZE).await?;
+        let _header_id = client.allocate_memory(HEADER_SIZE).await?;
         Ok(Self {
             client,
-            header_id,
+            //header_id,
             data: HashMap::new(),
         })
     }
@@ -32,6 +32,7 @@ impl KeyValueStore {
 
         let total_size = key.len() + value.len();
         let memory_id = self.client.allocate_memory(total_size as u64).await?;
+        println!("Allocated: {} bytes", memory_id);
 
         // write key
         self.client
@@ -53,12 +54,14 @@ impl KeyValueStore {
     pub async fn get(&mut self, key: &str) -> Result<Option<Vec<u8>>, MemoryError> {
         if let Some(&(memory_id, offset)) = self.data.get(key) {
             let key_size = key.len() as u64;
-            let value_size = self.client.read(memory_id, offset + key_size, 8).await?;
-            let value_size = u64::from_le_bytes(value_size.try_into().unwrap());
-            let value = self
-                .client
-                .read(memory_id, offset + key_size + 8, value_size)
-                .await?;
+            println!(
+                "memory_id: {}, offset: {}, key_size: {}, length: 8",
+                memory_id, offset, key_size
+            );
+            let total_size = self.client.read(memory_id, 0, u64::MAX).await?;
+
+            let value_start = key_size as usize;
+            let value = total_size[value_start..].to_vec();
             Ok(Some(value))
         } else {
             Ok(None)

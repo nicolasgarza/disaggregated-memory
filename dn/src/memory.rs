@@ -49,6 +49,8 @@ impl DataNode {
         offset: usize,
         length: usize,
     ) -> Result<&[u8], MemoryAccessError> {
+        println!("{:?}\n\n\n", self.mem);
+        println!("-----New access----");
         self.mem
             .get(id)
             .ok_or(MemoryAccessError::InvalidMemoryAddress)
